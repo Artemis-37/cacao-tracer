@@ -1,3 +1,4 @@
+// Updated API - Add allocateLoading method
 import axios from 'axios';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
@@ -59,14 +60,14 @@ export const settingsAPI = {
     apiClient.post('/settings/vehicles', data),
 };
 
-// Operations API
+// Operations API - UPDATED
 export const operationsAPI = {
   createLoading: (data) =>
     apiClient.post('/operations/loadings', data),
   getLoading: (id) =>
     apiClient.get(`/operations/loadings/${id}`),
-  allocateLoading: (id) =>
-    apiClient.post(`/operations/loadings/${id}/allocate`),
+  allocateLoading: (id, params) =>
+    apiClient.post(`/operations/loadings/${id}/allocate`, params),
   createReceipt: (data) =>
     apiClient.post('/operations/receipts', data),
 };

@@ -14,22 +14,26 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Stepper,
+  Step,
+  StepLabel,
 } from '@mui/material';
 import { settingsAPI, operationsAPI } from '../../services/api';
 
 function LoadingTracer() {
-  const [step, setStep] = useState(1); // 1: Initial form, 2: Allocation params
+  const [activeStep, setActiveStep] = useState(0); // 0: Saisie initiale, 1: Paramètres allocation
   const [exporters, setExporters] = useState([]);
   const [projects, setProjects] = useState([]);
-  const [vehicles, setVehicles] = useState([]);
   const [allocations, setAllocations] = useState([]);
   const [showAllocations, setShowAllocations] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [currentLoadingId, setCurrentLoadingId] = useState(null);
 
-  const [loadingData, setLoadingData] = useState({
+  // ÉTAPE 1: SAISIE INITIALE
+  const [saisieInitiale, setSaisieInitiale] = useState({
     exporter_id: '',
     project_id: '',
     loading_date: new Date().toISOString().split('T')[0],
@@ -41,7 +45,8 @@ function LoadingTracer() {
     total_sacks: '',
   });
 
-  const [allocationParams, setAllocationParams] = useState({
+  // ÉTAPE 2: PARAMÈTRES D'ALLOCATION AUTOMATIQUE
+  const [parametresAllocation, setParametresAllocation] = useState({
     delivery_start_date: '',
     delivery_end_date: '',
     delivery_percentage: 100,
@@ -52,7 +57,6 @@ function LoadingTracer() {
 
   useEffect(() => {
     fetchExporters();
-    fetchVehicles();
   }, []);
 
   const fetchExporters = async () => {
@@ -60,54 +64,38 @@ function LoadingTracer() {
       const response = await settingsAPI.getExporters();
       setExporters(response.data);
     } catch (err) {
-      console.error('Erreur lors du chargement des exportateurs');
-    }
-  };
-
-  const fetchVehicles = async () => {
-    try {
-      const response = await settingsAPI.getVehicles();
-      setVehicles(response.data);
-    } catch (err) {
-      console.error('Erreur lors du chargement des véhicules');
+      console.error('Erreur exportateurs');
     }
   };
 
   const handleExporterChange = async (exporterId) => {
-    setLoadingData((prev) => ({ ...prev, exporter_id: exporterId }));
-    // Fetch projects for this exporter
-    try {
-      // API call to get projects
-    } catch (err) {
-      console.error('Erreur');
-    }
+    setSaisieInitiale((prev) => ({ ...prev, exporter_id: exporterId }));
   };
 
-  const handleLoadingChange = (e) => {
+  const handleSaisieChange = (e) => {
     const { name, value } = e.target;
-    setLoadingData((prev) => ({ ...prev, [name]: value }));
+    setSaisieInitiale((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleAllocationChange = (e) => {
     const { name, value } = e.target;
-    setAllocationParams((prev) => ({
+    setParametresAllocation((prev) => ({
       ...prev,
-      [name]: name === 'delivery_percentage' || name === 'delivery_deadline_days' || name === 'min_sacks' || name === 'max_sacks'
+      [name]: ['delivery_percentage', 'delivery_deadline_days', 'min_sacks', 'max_sacks'].includes(name)
         ? parseInt(value)
         : value,
     }));
   };
 
-  const handleCreateLoading = async () => {
+  // ÉTAPE 1: Créer le chargement
+  const handleCreerChargement = async () => {
     setLoading(true);
     try {
-      const response = await operationsAPI.createLoading({
-        ...loadingData,
-        ...allocationParams,
-      });
+      const response = await operationsAPI.createLoading(saisieInitiale);
+      setCurrentLoadingId(response.data.id);
       setSuccess(true);
       setError('');
-      setStep(2);
+      setActiveStep(1);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
       setError(err.response?.data?.error || 'Erreur lors de la création');
@@ -116,21 +104,21 @@ function LoadingTracer() {
     }
   };
 
-  const handleAllocate = async () => {
+  // ÉTAPE 2: Affecter automatiquement
+  const handleTracerChargement = async () => {
     setLoading(true);
     setProgress(0);
     try {
-      // Simulate progress
+      // Simuler la progression
       const interval = setInterval(() => {
         setProgress((prev) => (prev < 90 ? prev + 10 : prev));
-      }, 500);
+      }, 300);
 
-      // In real implementation, call allocate API
-      // const response = await operationsAPI.allocateLoading(loadingId);
-      // setAllocations(response.data.allocations);
-
+      const response = await operationsAPI.allocateLoading(currentLoadingId, parametresAllocation);
+      
       clearInterval(interval);
       setProgress(100);
+      setAllocations(response.data.allocations);
       setSuccess(true);
       setError('');
       setTimeout(() => setSuccess(false), 3000);
@@ -141,15 +129,26 @@ function LoadingTracer() {
     }
   };
 
+  const steps = ['📋 Saisie initiale', '⚙️ Paramètres d\'allocation', '✅ Validation'];
+
   return (
     <Paper sx={{ p: 3 }}>
       {success && <Alert severity="success" sx={{ mb: 2 }}>Opération effectuée avec succès!</Alert>}
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-      {step === 1 && (
+      <Stepper activeStep={activeStep} sx={{ mb: 3 }}>
+        {steps.map((label) => (
+          <Step key={label}>
+            <StepLabel>{label}</StepLabel>
+          </Step>
+        ))}
+      </Stepper>
+
+      {/* ÉTAPE 1: SAISIE INITIALE */}
+      {activeStep === 0 && (
         <Box>
           <Typography variant="h6" sx={{ mb: 3, fontWeight: 'bold' }}>
-            📦 Saisie des informations de chargement
+            📋 Saisie des informations de chargement
           </Typography>
 
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 3 }}>
@@ -157,8 +156,8 @@ function LoadingTracer() {
               select
               label="Exportateur"
               name="exporter_id"
-              value={loadingData.exporter_id}
-              onChange={(e) => handleExporterChange(e.target.value)}
+              value={saisieInitiale.exporter_id}
+              onChange={handleSaisieChange}
               SelectProps={{ native: true }}
             >
               <option value="">Sélectionner...</option>
@@ -173,69 +172,64 @@ function LoadingTracer() {
               select
               label="Projet"
               name="project_id"
-              value={loadingData.project_id}
-              onChange={handleLoadingChange}
+              value={saisieInitiale.project_id}
+              onChange={handleSaisieChange}
               SelectProps={{ native: true }}
             >
               <option value="">Sélectionner...</option>
-              {projects.map((proj) => (
-                <option key={proj.id} value={proj.id}>
-                  {proj.name}
-                </option>
-              ))}
             </TextField>
 
             <TextField
               label="Date de chargement"
               type="date"
               name="loading_date"
-              value={loadingData.loading_date}
-              onChange={handleLoadingChange}
+              value={saisieInitiale.loading_date}
+              onChange={handleSaisieChange}
               InputLabelProps={{ shrink: true }}
             />
 
             <TextField
               label="N° Véhicule"
               name="vehicle_number"
-              value={loadingData.vehicle_number}
-              onChange={handleLoadingChange}
+              value={saisieInitiale.vehicle_number}
+              onChange={handleSaisieChange}
             />
 
             <TextField
               label="N° Remorque"
               name="trailer_number"
-              value={loadingData.trailer_number}
-              onChange={handleLoadingChange}
+              value={saisieInitiale.trailer_number}
+              onChange={handleSaisieChange}
             />
 
             <TextField
               label="Conducteur"
               name="driver_name"
-              value={loadingData.driver_name}
-              onChange={handleLoadingChange}
+              value={saisieInitiale.driver_name}
+              onChange={handleSaisieChange}
             />
 
             <TextField
               label="Connaissement"
               name="bill_of_lading"
-              value={loadingData.bill_of_lading}
-              onChange={handleLoadingChange}
+              value={saisieInitiale.bill_of_lading}
+              onChange={handleSaisieChange}
             />
 
             <TextField
               label="Poids déclaré (kg)"
               type="number"
               name="declared_weight"
-              value={loadingData.declared_weight}
-              onChange={handleLoadingChange}
+              value={saisieInitiale.declared_weight}
+              onChange={handleSaisieChange}
             />
 
             <TextField
               label="Nombre total de sacs"
               type="number"
               name="total_sacks"
-              value={loadingData.total_sacks}
-              onChange={handleLoadingChange}
+              value={saisieInitiale.total_sacks}
+              onChange={handleSaisieChange}
             />
           </Box>
 
@@ -243,7 +237,7 @@ function LoadingTracer() {
             <Button
               variant="contained"
               color="success"
-              onClick={handleCreateLoading}
+              onClick={handleCreerChargement}
               disabled={loading}
             >
               Suivant →
@@ -252,27 +246,33 @@ function LoadingTracer() {
         </Box>
       )}
 
-      {step === 2 && (
+      {/* ÉTAPE 2: PARAMÈTRES D'ALLOCATION AUTOMATIQUE */}
+      {activeStep === 1 && (
         <Box>
           <Typography variant="h6" sx={{ mb: 3, fontWeight: 'bold' }}>
-            ⚙️ Paramètres d'affectation
+            ⚙️ Paramètres d'allocation automatique
+          </Typography>
+
+          <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+            Configurez les paramètres pour l'allocation automatique du chargement aux producteurs.
+            Le poids par sac sera calculé entre 55 et 75 kg.
           </Typography>
 
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 3 }}>
             <TextField
-              label="Date de début de livraison"
+              label="Période de livraison - Début"
               type="date"
               name="delivery_start_date"
-              value={allocationParams.delivery_start_date}
+              value={parametresAllocation.delivery_start_date}
               onChange={handleAllocationChange}
               InputLabelProps={{ shrink: true }}
             />
 
             <TextField
-              label="Date de fin de livraison"
+              label="Période de livraison - Fin"
               type="date"
               name="delivery_end_date"
-              value={allocationParams.delivery_end_date}
+              value={parametresAllocation.delivery_end_date}
               onChange={handleAllocationChange}
               InputLabelProps={{ shrink: true }}
             />
@@ -281,69 +281,79 @@ function LoadingTracer() {
               label="Pourcentage à affecter (%)"
               type="number"
               name="delivery_percentage"
-              value={allocationParams.delivery_percentage}
+              value={parametresAllocation.delivery_percentage}
               onChange={handleAllocationChange}
+              helperText="100 = affecter 100% du poids déclaré"
             />
 
             <TextField
               label="Délai de livraison (jours)"
               type="number"
               name="delivery_deadline_days"
-              value={allocationParams.delivery_deadline_days}
+              value={parametresAllocation.delivery_deadline_days}
               onChange={handleAllocationChange}
+              helperText="Nombre de jours avant livraison"
             />
 
             <TextField
-              label="Min sacs par producteur"
+              label="Intervalle MIN de sacs"
               type="number"
               name="min_sacks"
-              value={allocationParams.min_sacks}
+              value={parametresAllocation.min_sacks}
               onChange={handleAllocationChange}
+              helperText="Nombre minimum de sacs par producteur"
             />
 
             <TextField
-              label="Max sacs par producteur"
+              label="Intervalle MAX de sacs"
               type="number"
               name="max_sacks"
-              value={allocationParams.max_sacks}
+              value={parametresAllocation.max_sacks}
               onChange={handleAllocationChange}
+              helperText="Nombre maximum de sacs par producteur"
             />
           </Box>
 
           {progress > 0 && (
             <Box sx={{ mb: 3 }}>
-              <Typography variant="caption" sx={{ mb: 1, display: 'block' }}>
-                Progression: {progress}%
+              <Typography variant="caption" sx={{ mb: 1, display: 'block', fontWeight: 'bold' }}>
+                Traçage en cours : {progress}%
               </Typography>
-              <LinearProgress variant="determinate" value={progress} />
+              <LinearProgress variant="determinate" value={progress} sx={{ height: 8, borderRadius: 4 }} />
             </Box>
           )}
 
-          <Box sx={{ display: 'flex', gap: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
             <Button
               variant="contained"
               color="success"
-              onClick={handleAllocate}
+              onClick={handleTracerChargement}
               disabled={loading}
+              sx={{ minWidth: 150 }}
             >
-              🎯 Tracer
+              🔄 Tracer
             </Button>
             <Button
               variant="outlined"
               color="success"
               onClick={() => setShowAllocations(true)}
+              disabled={allocations.length === 0}
+              sx={{ minWidth: 150 }}
             >
               👁️ Voir la liste
             </Button>
             <Button
               variant="contained"
               color="primary"
+              disabled={allocations.length === 0}
+              sx={{ minWidth: 150 }}
             >
               ✅ Valider le chargement
             </Button>
             <Button
               variant="outlined"
-              onClick={() => setStep(1)}
+              onClick={() => setActiveStep(0)}
+              sx={{ minWidth: 150 }}
             >
               ← Retour
             </Button>
@@ -356,14 +366,23 @@ function LoadingTracer() {
             fullWidth
           >
             <Box sx={{ p: 3 }}>
-              <Button onClick={() => setShowAllocations(false)}>Fermer</Button>
+              <Typography variant="h6" sx={{ mb: 2 }}>
+                📝 Liste des allocations
+              </Typography>
+              <Button
+                onClick={() => setShowAllocations(false)}
+                sx={{ mb: 2 }}
+              >
+                Fermer
+              </Button>
               <TableContainer>
                 <Table>
                   <TableHead>
                     <TableRow sx={{ background: '#70ad47' }}>
                       <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Producteur</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Poids alloué (kg)</TableCell>
+                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Poids (kg)</TableCell>
                       <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Sacs</TableCell>
+                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Poids/sac</TableCell>
                       <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Date livraison</TableCell>
                     </TableRow>
                   </TableHead>
@@ -371,9 +390,10 @@ function LoadingTracer() {
                     {allocations.map((alloc) => (
                       <TableRow key={alloc.id}>
                         <TableCell>{alloc.producer?.name}</TableCell>
-                        <TableCell>{alloc.allocated_weight}</TableCell>
+                        <TableCell>{alloc.allocated_weight.toFixed(2)}</TableCell>
                         <TableCell>{alloc.allocated_sacks}</TableCell>
-                        <TableCell>{alloc.delivery_date}</TableCell>
+                        <TableCell>{alloc.weight_per_sack?.toFixed(2)} kg</TableCell>
+                        <TableCell>{new Date(alloc.delivery_date).toLocaleDateString('fr-FR')}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

@@ -1,4 +1,4 @@
-# Routes - Operations
+# Routes - Operations UPDATED
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
 from app import db
@@ -18,11 +18,24 @@ def generate_loading_number():
     timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S')
     return f"CHG-{timestamp}"
 
-# Create Loading
+# Step 1: Create Loading (SAISIE INITIALE)
 @operations_bp.route('/loadings', methods=['POST'])
 @jwt_required()
 def create_loading():
-    """Créer un nouveau chargement"""
+    """
+    Créer un nouveau chargement avec saisie initiale uniquement.
+    
+    Données requises (SAISIE INITIALE UNIQUEMENT):
+    - exporter_id
+    - project_id
+    - loading_date
+    - vehicle_number (N° Véhicule)
+    - trailer_number (N° Remorque)
+    - driver_name (Conducteur)
+    - bill_of_lading (Connaissement)
+    - declared_weight (Poids déclaré en kg)
+    - total_sacks (Nombre total de sacs)
+    """
     data = request.get_json()
     coop = Cooperative.query.first()
     
@@ -38,12 +51,6 @@ def create_loading():
         bill_of_lading=data.get('bill_of_lading'),
         declared_weight=float(data.get('declared_weight')),
         total_sacks=int(data.get('total_sacks')),
-        delivery_start_date=datetime.fromisoformat(data.get('delivery_start_date')) if data.get('delivery_start_date') else None,
-        delivery_end_date=datetime.fromisoformat(data.get('delivery_end_date')) if data.get('delivery_end_date') else None,
-        delivery_percentage=float(data.get('delivery_percentage', 100)),
-        delivery_deadline_days=int(data.get('delivery_deadline_days', 30)),
-        min_sacks=int(data.get('min_sacks', 1)),
-        max_sacks=int(data.get('max_sacks', 10)),
         status='pending'
     )
     
@@ -52,14 +59,36 @@ def create_loading():
     
     return jsonify(loading.to_dict()), 201
 
-# Auto-allocate Loading to Producers
+# Step 2: Auto-allocate Loading to Producers (PARAMETRES D'ALLOCATION)
 @operations_bp.route('/loadings/<int:loading_id>/allocate', methods=['POST'])
 @jwt_required()
 def allocate_loading(loading_id):
-    """Affecter automatiquement le chargement aux producteurs"""
+    """
+    Affecter automatiquement le chargement aux producteurs.
+    
+    Paramètres d'allocation automatique (DANS LE CORPS DE LA REQUETE):
+    - delivery_start_date (date début de période de livraison)
+    - delivery_end_date (date fin de période de livraison)
+    - delivery_percentage (pourcentage à affecter, ex: 100)
+    - delivery_deadline_days (délai de livraison en jours, ex: 30)
+    - min_sacks (intervalle MIN de sacs par producteur, ex: 1)
+    - max_sacks (intervalle MAX de sacs par producteur, ex: 10)
+    """
     loading = Loading.query.get(loading_id)
     if not loading:
         return jsonify({'error': 'Loading not found'}), 404
+    
+    data = request.get_json()
+    
+    # Mettre à jour les paramètres d'allocation
+    loading.delivery_start_date = datetime.fromisoformat(data.get('delivery_start_date')) if data.get('delivery_start_date') else None
+    loading.delivery_end_date = datetime.fromisoformat(data.get('delivery_end_date')) if data.get('delivery_end_date') else None
+    loading.delivery_percentage = float(data.get('delivery_percentage', 100))
+    loading.delivery_deadline_days = int(data.get('delivery_deadline_days', 30))
+    loading.min_sacks = int(data.get('min_sacks', 1))
+    loading.max_sacks = int(data.get('max_sacks', 10))
+    
+    db.session.commit()
     
     # Supprimer les allocations existantes
     LoadingAllocation.query.filter_by(loading_id=loading_id).delete()
@@ -87,7 +116,7 @@ def allocate_loading(loading_id):
             producers.remove(producer)
             continue
         
-        # Déterminer le nombre de sacs à allouer
+        # Déterminer le nombre de sacs à allouer (selon intervalle min-max)
         sacks_to_allocate = random.randint(
             loading.min_sacks,
             min(loading.max_sacks, sacks_remaining)
@@ -108,10 +137,10 @@ def allocate_loading(loading_id):
         # Calculer la date de livraison
         delivery_date = loading.loading_date + timedelta(days=loading.delivery_deadline_days)
         if loading.delivery_start_date and loading.delivery_end_date:
-            delivery_date = random.choice([
-                loading.delivery_start_date,
-                loading.delivery_end_date
-            ])
+            # Date aléatoire entre start_date et end_date
+            days_diff = (loading.delivery_end_date - loading.delivery_start_date).days
+            random_days = random.randint(0, max(1, days_diff))
+            delivery_date = loading.delivery_start_date + timedelta(days=random_days)
         
         # Créer l'allocation
         allocation = LoadingAllocation(
