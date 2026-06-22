@@ -1,4 +1,4 @@
-# Harvest Season Model
+# Harvest Season Model - UPDATED
 from app import db
 from datetime import datetime
 from enum import Enum
@@ -17,7 +17,12 @@ class HarvestSeason(db.Model):
     start_date = db.Column(db.DateTime, nullable=False)
     end_date = db.Column(db.DateTime, nullable=False)
     delivery_percentage = db.Column(db.Float, default=0)  # Pourcentage de livraison autorisé
-    is_active = db.Column(db.Boolean, default=True)
+    
+    # NOUVEAU: Statut de la traite (ouverte/fermée)
+    is_active = db.Column(db.Boolean, default=False)  # False = fermée, True = ouverte
+    opened_at = db.Column(db.DateTime)  # Date/heure d'ouverture
+    closed_at = db.Column(db.DateTime)  # Date/heure de fermeture
+    
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -32,5 +37,8 @@ class HarvestSeason(db.Model):
             'start_date': self.start_date.isoformat(),
             'end_date': self.end_date.isoformat(),
             'delivery_percentage': self.delivery_percentage,
-            'is_active': self.is_active
+            'is_active': self.is_active,
+            'opened_at': self.opened_at.isoformat() if self.opened_at else None,
+            'closed_at': self.closed_at.isoformat() if self.closed_at else None,
+            'status': 'Ouverte' if self.is_active else 'Fermée'
         }

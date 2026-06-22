@@ -1,10 +1,10 @@
-# Routes - Operations UPDATED
+# Routes - Operations - UPDATED
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
 from app import db
 from app.models import (
     Loading, LoadingAllocation, Receipt, Producer, 
-    Cooperative, Exporter, Project
+    Cooperative, Exporter, Project, HarvestSeason, Campaign
 )
 from datetime import datetime, timedelta
 import random
@@ -18,14 +18,128 @@ def generate_loading_number():
     timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S')
     return f"CHG-{timestamp}"
 
+# ============================================
+# GESTION DES TRAITES (Ouvrir/Fermer)
+# ============================================
+
+# Ouvrir une traite
+@operations_bp.route('/harvest-seasons/open', methods=['POST'])
+@jwt_required()
+def open_harvest_season():
+    """
+    Ouvrir une traite (Grande ou Petite).
+    
+    Données requises:
+    - season_type: 'grande_traite' ou 'petite_traite'
+    """
+    data = request.get_json()
+    season_type = data.get('season_type')
+    
+    # Vérifier qu'une traite du même type n'est pas déjà ouverte
+    existing_open = HarvestSeason.query.filter_by(
+        type=season_type,
+        is_active=True
+    ).first()
+    
+    if existing_open:
+        return jsonify({
+            'error': f'Une {existing_open.name} est déjà ouverte. Veuillez d\'abord la fermer.'
+        }), 400
+    
+    # Récupérer la campagne active
+    campaign = Campaign.query.filter_by(is_active=True).first()
+    if not campaign:
+        return jsonify({'error': 'Aucune campagne active trouvée'}), 404
+    
+    # Chercher la traite définie pour cette campagne
+    season = HarvestSeason.query.filter_by(
+        campaign_id=campaign.id,
+        type=season_type
+    ).first()
+    
+    if not season:
+        return jsonify({
+            'error': f'Traite de type {season_type} non trouvée dans la campagne active'
+        }), 404
+    
+    # Ouvrir la traite
+    season.is_active = True
+    season.opened_at = datetime.utcnow()
+    season.closed_at = None
+    db.session.commit()
+    
+    return jsonify({
+        'message': f'{season.name} ouverte avec succès',
+        'season': season.to_dict()
+    }), 200
+
+# Fermer une traite
+@operations_bp.route('/harvest-seasons/<int:season_id>/close', methods=['POST'])
+@jwt_required()
+def close_harvest_season(season_id):
+    """
+    Fermer une traite ouverte.
+    
+    Paramètres:
+    - season_id: ID de la traite à fermer
+    """
+    season = HarvestSeason.query.get(season_id)
+    if not season:
+        return jsonify({'error': 'Traite non trouvée'}), 404
+    
+    if not season.is_active:
+        return jsonify({
+            'error': f'{season.name} est déjà fermée'
+        }), 400
+    
+    # Fermer la traite
+    season.is_active = False
+    season.closed_at = datetime.utcnow()
+    db.session.commit()
+    
+    return jsonify({
+        'message': f'{season.name} fermée avec succès',
+        'season': season.to_dict()
+    }), 200
+
+# Lister toutes les traites (y compris ouvertes/fermées)
+@operations_bp.route('/harvest-seasons', methods=['GET'])
+@jwt_required()
+def get_harvest_seasons():
+    """
+    Obtenir toutes les traites de la campagne active.
+    """
+    campaign = Campaign.query.filter_by(is_active=True).first()
+    if not campaign:
+        return jsonify([]), 200
+    
+    seasons = HarvestSeason.query.filter_by(campaign_id=campaign.id).all()
+    return jsonify([s.to_dict() for s in seasons]), 200
+
+# Traite actuellement ouverte
+@operations_bp.route('/harvest-seasons/active', methods=['GET'])
+@jwt_required()
+def get_active_harvest_season():
+    """
+    Obtenir la traite actuellement ouverte (s'il y en a une).
+    """
+    active = HarvestSeason.query.filter_by(is_active=True).first()
+    if not active:
+        return jsonify({'message': 'Aucune traite ouverte', 'season': None}), 200
+    return jsonify(active.to_dict()), 200
+
+# ============================================
+# GESTION DES CHARGEMENTS
+# ============================================
+
 # Step 1: Create Loading (SAISIE INITIALE)
 @operations_bp.route('/loadings', methods=['POST'])
 @jwt_required()
 def create_loading():
     """
-    Créer un nouveau chargement avec saisie initiale uniquement.
+    Créer un nouveau chargement avec saisie initiale + paramètres allocation.
     
-    Données requises (SAISIE INITIALE UNIQUEMENT):
+    Données requises:
     - exporter_id
     - project_id
     - loading_date
@@ -35,9 +149,31 @@ def create_loading():
     - bill_of_lading (Connaissement)
     - declared_weight (Poids déclaré en kg)
     - total_sacks (Nombre total de sacs)
+    
+    Paramètres d'allocation (SAISIE MANUELLE):
+    - delivery_start_date (début période livraison)
+    - delivery_end_date (fin période livraison)
+    - delivery_percentage (pourcentage à affecter, validé vs traite)
+    - delivery_deadline_days (délai en jours avant réallocation)
     """
     data = request.get_json()
     coop = Cooperative.query.first()
+    
+    # Valider le pourcentage contre la traite
+    delivery_percentage = float(data.get('delivery_percentage', 100))
+    
+    # Récupérer la traite active
+    active_season = HarvestSeason.query.filter_by(is_active=True).first()
+    
+    if not active_season:
+        return jsonify({'error': 'Aucune traite ouverte. Veuillez d\'abord ouvrir une traite.'}), 400
+    
+    max_percentage = active_season.delivery_percentage
+    
+    if delivery_percentage > max_percentage:
+        return jsonify({
+            'error': f'Pourcentage d\'affectation ({delivery_percentage}%) dépasse le maximum de la traite ({max_percentage}%)'
+        }), 400
     
     loading = Loading(
         loading_number=generate_loading_number(),
@@ -51,6 +187,14 @@ def create_loading():
         bill_of_lading=data.get('bill_of_lading'),
         declared_weight=float(data.get('declared_weight')),
         total_sacks=int(data.get('total_sacks')),
+        # Paramètres d'allocation (SAISIE MANUELLE)
+        delivery_start_date=datetime.fromisoformat(data.get('delivery_start_date')) if data.get('delivery_start_date') else None,
+        delivery_end_date=datetime.fromisoformat(data.get('delivery_end_date')) if data.get('delivery_end_date') else None,
+        delivery_percentage=delivery_percentage,
+        delivery_deadline_days=int(data.get('delivery_deadline_days', 30)),
+        # Intervalle de sacs (automatique)
+        min_sacks=int(data.get('min_sacks', 1)),
+        max_sacks=int(data.get('max_sacks', 10)),
         status='pending'
     )
     
@@ -59,36 +203,16 @@ def create_loading():
     
     return jsonify(loading.to_dict()), 201
 
-# Step 2: Auto-allocate Loading to Producers (PARAMETRES D'ALLOCATION)
+# Step 2: Auto-allocate Loading to Producers
 @operations_bp.route('/loadings/<int:loading_id>/allocate', methods=['POST'])
 @jwt_required()
 def allocate_loading(loading_id):
     """
     Affecter automatiquement le chargement aux producteurs.
-    
-    Paramètres d'allocation automatique (DANS LE CORPS DE LA REQUETE):
-    - delivery_start_date (date début de période de livraison)
-    - delivery_end_date (date fin de période de livraison)
-    - delivery_percentage (pourcentage à affecter, ex: 100)
-    - delivery_deadline_days (délai de livraison en jours, ex: 30)
-    - min_sacks (intervalle MIN de sacs par producteur, ex: 1)
-    - max_sacks (intervalle MAX de sacs par producteur, ex: 10)
     """
     loading = Loading.query.get(loading_id)
     if not loading:
         return jsonify({'error': 'Loading not found'}), 404
-    
-    data = request.get_json()
-    
-    # Mettre à jour les paramètres d'allocation
-    loading.delivery_start_date = datetime.fromisoformat(data.get('delivery_start_date')) if data.get('delivery_start_date') else None
-    loading.delivery_end_date = datetime.fromisoformat(data.get('delivery_end_date')) if data.get('delivery_end_date') else None
-    loading.delivery_percentage = float(data.get('delivery_percentage', 100))
-    loading.delivery_deadline_days = int(data.get('delivery_deadline_days', 30))
-    loading.min_sacks = int(data.get('min_sacks', 1))
-    loading.max_sacks = int(data.get('max_sacks', 10))
-    
-    db.session.commit()
     
     # Supprimer les allocations existantes
     LoadingAllocation.query.filter_by(loading_id=loading_id).delete()
@@ -106,6 +230,7 @@ def allocate_loading(loading_id):
     ).all()
     
     allocations = []
+    last_allocation_dates = {}
     
     while weight_remaining > 0 and sacks_remaining > 0 and producers:
         # Sélectionner un producteur aléatoire
@@ -116,7 +241,14 @@ def allocate_loading(loading_id):
             producers.remove(producer)
             continue
         
-        # Déterminer le nombre de sacs à allouer (selon intervalle min-max)
+        # Vérifier le délai de livraison
+        last_date = last_allocation_dates.get(producer.id)
+        if last_date:
+            days_since = (loading.loading_date - last_date).days
+            if days_since < loading.delivery_deadline_days:
+                continue
+        
+        # Déterminer le nombre de sacs à allouer
         sacks_to_allocate = random.randint(
             loading.min_sacks,
             min(loading.max_sacks, sacks_remaining)
@@ -137,7 +269,6 @@ def allocate_loading(loading_id):
         # Calculer la date de livraison
         delivery_date = loading.loading_date + timedelta(days=loading.delivery_deadline_days)
         if loading.delivery_start_date and loading.delivery_end_date:
-            # Date aléatoire entre start_date et end_date
             days_diff = (loading.delivery_end_date - loading.delivery_start_date).days
             random_days = random.randint(0, max(1, days_diff))
             delivery_date = loading.delivery_start_date + timedelta(days=random_days)
@@ -158,6 +289,9 @@ def allocate_loading(loading_id):
         
         # Mettre à jour le producteur
         producer.production_delivered += weight_to_allocate
+        
+        # Tracker la dernière allocation
+        last_allocation_dates[producer.id] = delivery_date
         
         # Mettre à jour les totaux
         weight_remaining -= weight_to_allocate
@@ -207,8 +341,6 @@ def create_receipt():
     data = request.get_json()
     coop = Cooperative.query.first()
     
-    # Générer le numéro de reçu
-    from datetime import datetime
     timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S')
     receipt_number = f"RCP-{timestamp}"
     

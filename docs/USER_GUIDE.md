@@ -1,215 +1,192 @@
-# 🌾 Cacao Tracer - Guide de l'Utilisateur
+# 📖 Guide d'Utilisation - Cacao Tracer v1.0
 
-## Vue d'ensemble
+## Flux Complet: Ouvrir une Traite → Tracer des Chargements → Fermer la Traite
 
-**Cacao Tracer** est un système complet pour gérer et traçer les chargements de cacao de votre coopérative agricole.
+### 1️⃣ OUVRIR UNE TRAITE (Opérations > Ouvrir une traite)
 
-## 🔐 Connexion
+**Étapes:**
+1. Aller à **Opérations** → **Ouvrir une traite**
+2. Sélectionner le type de traite:
+   - 🌱 **Grande Traite** (Oct-Mar, 70%)
+   - 🌾 **Petite Traite** (Avr-Sep, 30%)
+3. Cliquer **🔓 Ouvrir la Traite**
+4. Confirmer l'ouverture
 
-1. Accueil: http://localhost:3000
-2. Email: `admin@cacao-tracer.local`
-3. Mot de passe: `Admin@123`
-4. Cliquer "Se connecter"
-
-## 📊 Tableau de Bord
-
-Affiche des statistiques en temps réel:
-- Nombre de producteurs
-- Nombre de chargements
-- Poids total traité
-- Chargements completés
-
-## ⚙️ Paramétrage Initial (OBLIGATOIRE)
-
-### 1. Société
-Configure les informations de votre coopérative:
-- Nom de la coopérative
-- Sigle (acronýme)
-- Localisation
-- Téléphone / Email
-- Site web
-- Logo (optionnel)
-
-### 2. Campagne
-Définissez la campagne agricole:
-- Nom (ex: 2026/2027)
-- Date de début
-- Date de fin
-
-### 3. Traites (Grande et Petite)
-Définissez les saisons de récolte:
-
-**Grande Traite:**
-- Date début: 1er octobre
-- Date fin: 31 mars
-- Pourcentage: 70%
-
-**Petite Traite:**
-- Date début: 1er avril
-- Date fin: 30 septembre
-- Pourcentage: 30%
-
-### 4. Producteurs
-Importez votre base de producteurs:
-- Via CSV (Paramètres > Producteurs > Importer)
-- Ou ajouter manuellement
-
-Données requises:
-- Nom
-- Téléphone (optionnel)
-- Email (optionnel)
-- Village
-- Latitude / Longitude (pour localisation)
-- **Production estimée (kg)** - CRUCIAL
-
-### 5. Exportateurs
-Enregistrez vos partenaires exportateurs:
-- Nom
-- Personne de contact
-- Téléphone / Email
-- Adresse
-- Logo (optionnel)
-
-### 6. Véhicules
-Recensez votre flotte:
-- N° d'immatriculation
-- Type (Camion/Remorque)
-- Nom du chauffeur
-- Téléphone du chauffeur
-- Capacité (kg)
-
-## 📋 Opérations
-
-### Carnet de Reçu
-Générez des numéros de reçu automatiques pour chaque achat producteur.
-
-### Tracer un Chargement
-
-**PROCESSUS EN 2 ÉTAPES :**
-
-#### **ÉTAPE 1 : SAISIE INITIALE**
-
-Entrée les données du chargement:
-
-| Champ | Description |
-|-------|-------------|
-| **Exportateur** | Sélectionner dans la liste déroulante |
-| **Projet** | Sélectionner le projet associé |
-| **Date de chargement** | Date physique du chargement |
-| **N° Véhicule** | Numéro d'immatriculation du véhicule |
-| **N° Remorque** | Numéro d'immatriculation de la remorque |
-| **Conducteur** | Nom du chauffeur |
-| **Connaissement** | Numéro de connaissement (Bill of Lading) |
-| **Poids déclaré** | Poids total en kg |
-| **Nombre total de sacs** | Nombre de sacs du chargement |
-
-**Action:** Cliquer "Suivant →"
+**Résultat:** La traite est ouverte et vous pouvez créer des chargements.
 
 ---
 
-#### **ÉTAPE 2 : PARAMÈTRES D'ALLOCATION AUTOMATIQUE**
+### 2️⃣ CONFIGURER LES DATES DE LIVRAISON GLOBALES
 
-Configurer l'allocation intelligente du chargement aux producteurs:
+**Opération optionnelle, mais recommandée:**
+1. Aller à **Paramètres** → **Société**
+2. Remplir les champs:
+   - **Période de livraison globale - Début** (ex: 15/01/2026)
+   - **Période de livraison globale - Fin** (ex: 28/02/2026)
+3. Enregistrer
 
-| Paramètre | Description | Exemple |
-|-----------|-------------|----------|
-| **Période de livraison - Début** | Date de début de la période | 15/01/2026 |
-| **Période de livraison - Fin** | Date de fin de la période | 28/02/2026 |
-| **Pourcentage à affecter** | % du poids total à allouer aux producteurs | 100 (= affecter 100% du poids) |
-| **Délai de livraison** | Nombre de jours avant livraison | 30 jours |
-| **Intervalle MIN de sacs** | Nombre minimum par producteur | 1 sac |
-| **Intervalle MAX de sacs** | Nombre maximum par producteur | 10 sacs |
-
-**Le système va automatiquement:**
-1. ✅ Calculer le poids à allouer = `declared_weight × (delivery_percentage / 100)`
-2. ✅ Sélectionner des producteurs aléatoires
-3. ✅ Allouer 1-10 sacs par producteur (selon l'intervalle)
-4. ✅ Calculer poids/sac aléatoire entre 55-75 kg
-5. ✅ Respecter l'estimation de production restante
-6. ✅ Générer une date de livraison aléatoire entre les dates
-7. ✅ Afficher une barre de progression animée
-
-**Actions:**
-- 🔄 **Tracer** - Lance l'allocation automatique
-- 👁️ **Voir la liste** - Affiche les allocations générées
-- ✅ **Valider le chargement** - Finalise et génère la fiche d'accompagnement
-- ← **Retour** - Revenir à l'étape 1
+Ces dates servent de **defaults** pour tous les chargements.
 
 ---
 
-### Liste des Allocations
+### 3️⃣ TRACER UN CHARGEMENT (Opérations > Tracer un Chargement)
 
-Affiche pour chaque producteur:
-- **Nom du producteur**
-- **Poids alloué (kg)**
-- **Nombre de sacs**
-- **Poids moyen/sac (55-75 kg)**
-- **Date de livraison prévue**
+**⚠️ IMPORTANT:** Une traite doit être **ouverte** avant de créer un chargement.
 
-### Fiche d'Accompagnement
-
-Après validation, vous pouvez:
-- 📊 **Imprimer** - Version papier
-- 💾 **Exporter PDF** - Pour archivage digital
-- 📋 **Exporter Excel** - Pour analyse
-- 🗺 **Exporter GeoJSON** - Pour mapping
-
-## 💾 Base de Données
-
-### Importer
-**Importer des producteurs depuis un fichier CSV**
-
-Format CSV attendu:
-```csv
-name,phone,email,village,latitude,longitude,estimated_production,is_active
-Producteur 1,+225 01 23 45 67,prod1@example.com,Village A,6.8276,-5.2893,5000,true
+**Étape 1: Période de Livraison (SAISIE MANUELLE)**
+```
+Début de livraison    : 15/01/2026
+Fin de livraison      : 28/02/2026
 ```
 
-### Exporter
+**Étape 2: Informations de la Coopérative**
+```
+Exportateur      : OFI (Olam Food Ingredients)
+Projet           : Projet Standard
+Date chargement  : 10/01/2026
+N° Véhicule      : CIM-2026-001
+N° Remorque      : RAM-2026-001
+Conducteur       : Jean Dupont
+Connaissement    : BL-2026-001
+Poids déclaré    : 5000 kg
+Nombre de sacs   : 75 sacs
+```
 
-**Formats disponibles:**
-- 📋 **Producteurs (Excel)** - Liste complète avec production
-- 📦 **Chargements (Excel)** - Historique des chargements
-- 🗺 **GeoJSON** - Données géographiques pour mapping
-- 🖨 **PDF** - Rapports format PDF
-- 📄 **JSON** - Format brut pour intégrations
+**Étape 3: Paramètres d'Allocation (SAISIE MANUELLE)**
+```
+Pourcentage à affecter      : 70%  (Max: 70% de la Grande Traite)
+Délai de livraison (jours)  : 30 jours (avant réallocation même producteur)
+Intervalle MIN sacs         : 1 sac
+Intervalle MAX sacs         : 10 sacs
+```
 
----
+**Le système va automatiquement:**
+- ✅ Calculer le poids: 5000 × (70/100) = 3500 kg
+- ✅ Distribuer à producteurs aléatoires (1-10 sacs chacun)
+- ✅ Calculer poids/sac: 55-75 kg
+- ✅ Respecter délai de 30j avant réallocation
+- ✅ Générer date de livraison entre 15/01 et 28/02
 
-## 🐛 Calcul Automatique - Détails Techniques
+**Action:** Cliquer **🔄 Créer et Tracer le Chargement**
 
-### Poids par Sac
-- **Min:** 55 kg
-- **Max:** 75 kg
-- **Calcul:** Aléatoire entre 55-75 kg par allocation
-
-### Allocation aux Producteurs
-1. Sélection aléatoire d'un producteur actif
-2. Vérification de sa production restante
-3. Allocation de `min_sacks` à `max_sacks` sacs
-4. Calcul du poids = nombre de sacs × poids moyen
-5. Limitation au poids restant et production restante
-
-### Dates de Livraison
-- Si période spécifiée: date aléatoire entre début et fin
-- Sinon: date du chargement + délai en jours
-
----
-
-## 📐 FAQs
-
-**Q: Qu'est-ce que "Production estimée"?**
-R: La quantité de cacao que le producteur peut fournir (en kg) sur la campagne.
-
-**Q: Comment le système respecte "Production restante"?**
-R: Il garde en mémoire ce qui a déjà été alloué et n'alloue pas plus que la production estimée.
-
-**Q: Puis-je modifier une allocation?**
-R: Actuellement, les allocations sont finales. Pour modifier, créez un nouveau chargement.
-
-**Q: Que signifie "Intervalle de sacs"?**
-R: Le nombre de sacs distribués aléatoirement entre min et max pour chaque producteur.
+**Résultat:**
+- 👁️ Voir la liste des allocations (cliquer "Voir la liste")
+- 📋 Valider le chargement (générer fiche d'accompagnement)
 
 ---
 
-**Version:** 1.0.0
+### 4️⃣ FERMER UNE TRAITE (Opérations > Fermer une traite)
+
+**Étapes:**
+1. Aller à **Opérations** → **Fermer une traite**
+2. Sélectionner la traite ouverte (auto-sélection si 1 seule)
+3. Cliquer **🔒 Fermer la Traite**
+4. Confirmer la fermeture
+
+**Résultat:**
+- La traite est fermée ✅
+- Vous ne pouvez plus créer de chargements pour cette traite
+- Vous pouvez ouvrir une autre traite ou la même traite plus tard
+
+---
+
+## 🔑 Concepts Clés
+
+### Traite (Harvest Season)
+- **Grande Traite:** Octobre-Mars, Max 70% livraison
+- **Petite Traite:** Avril-Septembre, Max 30% livraison
+- **Statut:** Ouverte ou Fermée
+- **État:** Une seule traite peut être ouverte à la fois par type
+
+### Pourcentage à Affecter
+- **Exemple:** Grande Traite = 70% max
+- **Pour un chargement:** Je peux affecter 0-70%
+- **Ne PAS dépasser:** Le max de la traite
+- **Saisie:** Manuelle par l'utilisateur
+
+### Délai de Livraison (Jours)
+- **Définition:** Nombre de jours avant réallocation au même producteur
+- **Exemple:** Délai = 30 jours
+  - Producteur X reçoit un chargement le 15/01
+  - Prochaine allocation possible: 15/02 (après 30 jours)
+  - Avant le 15/02: le système saute ce producteur
+
+### Intervalle de Sacs
+- **MIN:** Nombre minimum par producteur (ex: 1)
+- **MAX:** Nombre maximum par producteur (ex: 10)
+- **Automatique:** Le système choisit aléatoire entre MIN-MAX
+- **Poids/sac:** 55-75 kg (calculé automatiquement)
+
+---
+
+## 📊 État et Statuts
+
+### Traite
+| État | Signification | Action |
+|------|---------------|--------|
+| 🟢 OUVERTE | Traite active | Créer chargements |
+| 🔴 FERMÉE | Traite inactive | Ouvrir pour réactiver |
+
+### Chargement
+| État | Signification |
+|------|---------------|
+| ⏳ Pending | En attente d'allocation |
+| 🔄 In Progress | Allocation en cours |
+| ✅ Completed | Poids et sacs atteints |
+
+---
+
+## 🎯 Cas d'Usage Typique
+
+**Scénario:** Traiter 3 chargements de Grande Traite en janvier
+
+```
+1️⃣ LUNDI 10/01
+   → Ouvrir Grande Traite
+
+2️⃣ LUNDI 10/01 - Chargement 1
+   Période: 15/01 - 31/01
+   Poids: 2500 kg, Pourcentage: 50%
+   Affectés: 1250 kg à producteurs
+
+3️⃣ JEUDI 13/01 - Chargement 2
+   Période: 15/01 - 31/01
+   Poids: 3000 kg, Pourcentage: 50%
+   Affectés: 1500 kg à producteurs
+   → Certains producteurs du chargement 1 peuvent être réalloués
+     (si délai de 30j respecté)
+
+4️⃣ SAMEDI 15/01 - Chargement 3
+   Période: 15/01 - 31/01
+   Poids: 2000 kg, Pourcentage: 70%
+   Affectés: 1400 kg à producteurs
+
+5️⃣ LUNDI 01/02
+   → Tous les chargements sont validés
+   → Générer fiches d'accompagnement
+   → Exporter données
+
+6️⃣ LUNDI 28/02
+   → Fermer Grande Traite (fin de saison)
+```
+
+---
+
+## ⚠️ Erreurs Courantes
+
+### ❌ "Aucune traite ouverte"
+**Solution:** Aller à Opérations → Ouvrir une traite
+
+### ❌ "Pourcentage dépasse le maximum"
+**Exemple:** Grande Traite = 70% max
+- ✅ Correct: 70% ou moins
+- ❌ Incorrect: 80% ou plus
+**Solution:** Réduire le pourcentage
+
+### ❌ "Une Grande Traite est déjà ouverte"
+**Solution:** Fermer d'abord la Grande Traite ouverte
+
+---
+
+**Version:** 1.0.0  
+**Dernière mise à jour:** 2026-06-22

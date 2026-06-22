@@ -1,4 +1,4 @@
-// Updated API - Add allocateLoading method
+// Updated API - Add harvest season operations
 import axios from 'axios';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
@@ -60,8 +60,19 @@ export const settingsAPI = {
     apiClient.post('/settings/vehicles', data),
 };
 
-// Operations API - UPDATED
+// Operations API - UPDATED WITH HARVEST SEASONS
 export const operationsAPI = {
+  // Harvest Seasons
+  getHarvestSeasons: () =>
+    apiClient.get('/operations/harvest-seasons'),
+  getActiveHarvestSeason: () =>
+    apiClient.get('/operations/harvest-seasons/active'),
+  openHarvestSeason: (data) =>
+    apiClient.post('/operations/harvest-seasons/open', data),
+  closeHarvestSeason: (seasonId) =>
+    apiClient.post(`/operations/harvest-seasons/${seasonId}/close`, {}),
+  
+  // Loadings
   createLoading: (data) =>
     apiClient.post('/operations/loadings', data),
   getLoading: (id) =>

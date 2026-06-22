@@ -3,6 +3,8 @@ import { Box, Tabs, Tab, Typography } from '@mui/material';
 import { useState } from 'react';
 import ReceiptNotebook from '../components/operations/ReceiptNotebook';
 import LoadingTracer from '../components/operations/LoadingTracer';
+import OpenHarvestSeason from '../components/operations/OpenHarvestSeason';
+import CloseHarvestSeason from '../components/operations/CloseHarvestSeason';
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
@@ -33,14 +35,22 @@ function OperationsPage() {
       </Typography>
 
       <Tabs value={tabValue} onChange={handleTabChange}>
+        <Tab label="Ouvrir une traite" />
+        <Tab label="Fermer une traite" />
         <Tab label="Carnet de Reçu" />
         <Tab label="Tracer un Chargement" />
       </Tabs>
 
       <TabPanel value={tabValue} index={0}>
-        <ReceiptNotebook />
+        <OpenHarvestSeason />
       </TabPanel>
       <TabPanel value={tabValue} index={1}>
+        <CloseHarvestSeason />
+      </TabPanel>
+      <TabPanel value={tabValue} index={2}>
+        <ReceiptNotebook />
+      </TabPanel>
+      <TabPanel value={tabValue} index={3}>
         <LoadingTracer />
       </TabPanel>
     </Box>
